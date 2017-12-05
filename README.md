@@ -50,6 +50,7 @@ Start slave node:
 docker run -d --name jenkins-slave1 --restart=unless-stopped \
            -v /$HOME/jenkins-slave1:/home/jenkins \
            -v /var/run/docker.sock:/var/run/docker.sock \
+           -v /$HOME/.m2:/home/jenkins/.m2 \
            -e JENKINS_URL=http://172.17.0.1:8082 \
            foxylion/jenkins-slave
 
@@ -179,6 +180,44 @@ Now you can setup real build pipeline for local development.
 Example if you have project with Maven build you can create a jenkins build which will run unit and integration tests and show code coverage.
 See more how to create a pipeline with Jenkins pipeline plugin in [my blog post](https://dev.to/piczmar_0/jenkins-pipeline-for-remote-jacoco-test-coverage-9k5).
 
+# Setting up Jenkins slave for running Maven with secured Nexus
+
+In some cases you may have some custom Maven configuration on localhost, e.g. credentials to access Nexus server.
+In this case using default Jenkins Docker image is not an option, unless you want to manually copy all the local setup to the container.
+
+Here better solution is sharing local `.m2` folder to the container.
+
+Below is a Docker run command for Jenkins slave which will allow you to accomplish this
+
+```
+docker run -d --name jenkins-slave1 --restart=unless-stopped \
+           -v /$HOME/jenkins-slave1:/home/jenkins \
+           -v /$HOME/.m2:/root/.m2 \
+           -v /$HOME/.ssh:/root/.ssh \
+           -v /var/run/docker.sock:/var/run/docker.sock \
+           -e JENKINS_URL=http://172.17.0.1:8082 \
+           foxylion/jenkins-slave
+```
+It shares also SSH credentials from you localhost so that Jenkins can authenticate to git repositories.
+
+WARNING !! : at first run make sure to backup you local folders `/$HOME/.m2` and `/$HOME/.ssh` because if by any mistake the contaier already contains folders `/root/.m2` and `/root/.ssh` they will overwrite your local folders.
+
+# Jenkins slave with Java Cryptography Extension (JCE) Unlimited Strength
+If you have build which requires JCE then you can build Jenkins slave image from files in folder [jenkins-slave-jdk8-jce](jenkins-slave-jdk8-jce)
+Use provided bash script to build image. Then you can start it with:
+
+```
+docker run -d --name jenkins-slave1 --restart=unless-stopped \
+           -v /$HOME/jenkins-slave1:/home/jenkins \
+           -v /$HOME/.m2:/root/.m2 \
+           -v /$HOME/.ssh:/root/.ssh \
+           -v /var/run/docker.sock:/var/run/docker.sock \
+           -e JENKINS_URL=http://172.17.0.1:8082 \
+           jenkins-slave
+
+```
+
+When you setup JDK in Jenkins use JAVA_HOME=/usr/lib/jvm/java-8-oracle
 
 # References
  - https://git-scm.com/book/it/v2/Git-on-the-Server-Setting-Up-the-Server
